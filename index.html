@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi Absences Louveteaux 2026/2027</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --text-danger: #c41e3a;
+            --text-success: #2d7d3d;
+            --text-warning: #8b4513;
+            --text-accent: #fff;
+            --text-muted: #999;
+            --bg-danger: #fce4e4;
+            --bg-success: #e4f8e8;
+            --bg-warning: #fff8e4;
+            --bg-accent: #4a90e2;
+            --on-accent: #fff;
+            --fill-accent: #4a90e2;
+            --surface-1: #f5f5f5;
+            --surface-2: #fff;
+            --border: #ddd;
+            --border-strong: #bbb;
+            --radius: 6px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #e0e0e0;
+                --text-secondary: #b0b0b0;
+                --text-muted: #777;
+                --bg-accent: #5a9ef5;
+                --surface-1: #2a2a2a;
+                --surface-2: #1a1a1a;
+                --border: #444;
+                --border-strong: #555;
+                --fill-accent: #5a9ef5;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--surface-2);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        h2 { font-size: 18px; font-weight: 500; margin: 0 0 8px; }
+        .subtitle { font-size: 14px; color: var(--text-secondary); margin: 0 0 1.5rem; }
+
+        /* LOGIN */
+        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-screen.hidden { display: none; }
+        .login-card { background: var(--surface-2); border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); padding: 40px; width: 100%; max-width: 400px; }
+        .login-card h1 { text-align: center; margin-bottom: 32px; color: var(--text-primary); font-size: 24px; }
+
+        .login-tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+        .login-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; border: none; background: none; font-size: 14px; font-weight: 500; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .login-tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+        .login-form { display: none; }
+        .login-form.active { display: block; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 13px; color: var(--text-secondary); }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+
+        .login-button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: var(--radius); font-weight: 500; cursor: pointer; }
+        .login-button:hover { background: #5568d3; }
+        .error-message { color: var(--text-danger); font-size: 13px; margin-top: 8px; text-align: center; }
+
+        /* APP */
+        .app-screen { display: none; }
+        .app-screen.active { display: block; }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header { background: var(--surface-2); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
+        .header h1 { font-size: 20px; margin: 0; }
+        .header-right { display: flex; gap: 12px; align-items: center; }
+
+        .user-badge { font-size: 12px; padding: 6px 12px; background: var(--surface-1); border-radius: 20px; color: var(--text-secondary); }
+        .status-indicator { font-size: 12px; padding: 6px 12px; background: var(--bg-warning); border-radius: var(--radius); color: var(--text-warning); }
+        .status-indicator.connected { background: var(--bg-success); color: var(--text-success); }
+        .logout-btn { padding: 8px 16px; background: var(--text-danger); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 13px; }
+
+        .content { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
+
+        .main-table { background: var(--surface-2); border-radius: var(--radius); padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); border: 1px solid var(--border); overflow-x: auto; }
+
+        .table-toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        button { padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--fill-accent); color: var(--on-accent); font-size: 13px; font-weight: 500; cursor: pointer; }
+        button.secondary { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .sort-info { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+        .table-wrapper { overflow-x: auto; border: 0.5px solid var(--border); border-radius: var(--radius); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: var(--surface-1); border-bottom: 0.5px solid var(--border-strong); }
+        th { text-align: left; padding: 10px 12px; font-weight: 500; color: var(--text-secondary); }
+        td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); }
+        tbody tr:nth-child(even) { background: var(--surface-1); }
+
+        .absent-cell { background: var(--bg-danger) !important; }
+
+        .admin-panel { background: var(--surface-2); border-radius: var(--radius); padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); border: 1px solid var(--border); height: fit-content; position: sticky; top: 20px; }
+        .admin-panel.hidden { display: none; }
+        .admin-section { margin-bottom: 20px; }
+        .admin-section h3 { font-size: 12px; font-weight: 600; color: #667eea; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        input[type="text"], input[type="email"], input[type="date"], select, textarea { width: 100%; padding: 8px; border: 0.5px solid var(--border); border-radius: var(--radius); font-size: 12px; margin-bottom: 8px; }
+
+        .louveteau-list { font-size: 12px; max-height: 250px; overflow-y: auto; }
+        .louveteau-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--surface-1); border-radius: var(--radius); margin-bottom: 6px; }
+        .louveteau-item button { padding: 3px 6px; background: var(--text-danger); font-size: 11px; }
+
+        /* MODALS */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: var(--surface-2); border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border); }
+        .modal-box h3 { margin: 0 0 16px; font-size: 16px; }
+
+        .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+        .modal-actions button { flex: 1; }
+
+        .absence-recap { background: var(--bg-danger); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; border: 0.5px solid #e8b8c0; }
+        .absence-recap p { font-size: 12px; color: var(--text-danger); margin: 0 0 8px; }
+        .absence-recap p:last-child { margin: 0; }
+
+        textarea { min-height: 80px; resize: vertical; }
+
+        .confirm-section { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 12px; background: var(--bg-warning); border-radius: var(--radius); }
+        .confirm-section input { width: 16px; height: 16px; margin: 0; }
+        .confirm-section label { font-size: 13px; color: var(--text-warning); font-weight: 500; margin: 0; cursor: pointer; }
+
+        @media (max-width: 1024px) {
+            .content { grid-template-columns: 1fr; }
+            .admin-panel { position: relative; top: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <h1>🦁 Louveteaux 2026/27</h1>
+
+            <div class="login-tabs">
+                <button class="login-tab active" onclick="switchTab('saisir')">Saisir</button>
+                <button class="login-tab" onclick="switchTab('admin')">Admin</button>
+            </div>
+
+            <form class="login-form active" id="saisirForm" onsubmit="loginSaisir(event)">
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="saisirPassword" placeholder="louveteaux2026" required>
+                </div>
+                <button type="submit" class="login-button">Accéder</button>
+                <div class="error-message" id="saisirError"></div>
+            </form>
+
+            <form class="login-form" id="adminForm" onsubmit="loginAdmin(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="adminEmail" placeholder="arthurduguet@gmail.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="adminPassword" required>
+                </div>
+                <button type="submit" class="login-button">Connexion Admin</button>
+                <div class="error-message" id="adminError"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- APP SCREEN -->
+    <div id="appScreen" class="app-screen">
+        <div class="container">
+            <div class="header">
+                <h1>🦁 Suivi Absences Louveteaux 2026/27</h1>
+                <div class="header-right">
+                    <div class="status-indicator" id="firebaseStatus">🔄 Connexion...</div>
+                    <div class="user-badge" id="userBadge"></div>
+                    <button class="logout-btn" onclick="logout()">Déconnexion</button>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="main-table">
+                    <div class="table-toolbar">
+                        <button onclick="showAddSortieModal()">+ Ajouter sortie</button>
+                        <button class="secondary" onclick="copyWhatsApp()">📋 Copier pour WhatsApp</button>
+                        <div class="sort-info" id="sortInfo"></div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="mainTable">
+                            <thead>
+                                <tr>
+                                    <th>Louveteau</th>
+                                    <th>Sizaine</th>
+                                    <th id="sortieHeader"></th>
+                                    <th>Absences</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="admin-panel hidden" id="adminPanel">
+                    <h2>⚙️ Admin</h2>
+
+                    <div class="admin-section">
+                        <h3>Ajouter louveteau</h3>
+                        <input type="text" id="newLouvName" placeholder="Nom">
+                        <select id="newLouvSizaine">
+                            <option value="">Sizaine</option>
+                            <option value="noir">🖤 Noir</option>
+                            <option value="gris">🩶 Gris</option>
+                            <option value="blanc">🤍 Blanc</option>
+                            <option value="brun">🟤 Brun</option>
+                        </select>
+                        <button onclick="addLouveteau()">Ajouter</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>Louveteaux</h3>
+                        <div class="louveteau-list" id="louvList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="addSortieModal" class="modal-overlay">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Ajouter une sortie</h3>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="sortieDate" required>
+            </div>
+            <div class="form-group">
+                <label>Libellé</label>
+                <input type="text" id="sortieLabel" placeholder="ex: Dimanche 5 octobre" required>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="closeModal('addSortieModal')">Annuler</button>
+                <button onclick="saveSortie()">Créer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="validateModal" class="modal-overlay">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Valider sortie</h3>
+            <div id="validateContent"></div>
+            <div class="form-group">
+                <label>Commentaire (optionnel)</label>
+                <textarea id="validComment"></textarea>
+            </div>
+            <div class="confirm-section">
+                <input type="checkbox" id="validCheck">
+                <label>J'ai vérifié les informations</label>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="closeModal('validateModal')">Annuler</button>
+                <button onclick="validateSortie()">Valider et fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editSortieModal" class="modal-overlay">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Modifier sortie</h3>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="editDate" required>
+            </div>
+            <div class="form-group">
+                <label>Libellé</label>
+                <input type="text" id="editLabel" required>
+            </div>
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="editVisible" checked style="width: auto; margin: 0;">
+                    Visible
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="closeModal('editSortieModal')">Annuler</button>
+                <button onclick="updateSortie()">Sauvegarder</button>
+                <button onclick="deleteSortie()" style="background: var(--text-danger);">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8vsNqHwVCU0Dr0wsfnzZqsky8PBRtylM",
+            authDomain: "outil-absence-louveteaux.firebaseapp.com",
+            databaseURL: "https://outil-absence-louveteaux-default-rtdb.firebaseio.com",
+            projectId: "outil-absence-louveteaux",
+            storageBucket: "outil-absence-louveteaux.firebasestorage.app",
+            messagingSenderId: "732723348044",
+            appId: "1:732723348044:web:230cfa14e99e9ecb402ae9"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = null;
+        let currentRole = null;
+        let appData = { louveteaux: {}, sorties: {}, validations: {} };
+        let editingSortie = null;
+
+        // Firebase listener
+        db.ref('louveteau-data').on('value', (snapshot) => {
+            appData = snapshot.val() || { louveteaux: {}, sorties: {}, validations: {} };
+            if (currentUser) render();
+            updateFirebaseStatus(true);
+        }, () => updateFirebaseStatus(false));
+
+        // LOGIN
+        function switchTab(tab) {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab === 'saisir' ? 'saisirForm' : 'adminForm').classList.add('active');
+        }
+
+        function loginSaisir(e) {
+            e.preventDefault();
+            if (document.getElementById('saisirPassword').value === 'louveteaux2026') {
+                currentUser = 'saisir';
+                currentRole = 'saisir';
+                showApp();
+            } else {
+                document.getElementById('saisirError').innerText = 'Mot de passe incorrect';
+            }
+        }
+
+        function loginAdmin(e) {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value;
+            const pwd = document.getElementById('adminPassword').value;
+            if (email === 'arthurduguet@gmail.com' && pwd === 'arthurduguet@gmail.com') {
+                currentUser = email;
+                currentRole = 'admin';
+                showApp();
+            } else {
+                document.getElementById('adminError').innerText = 'Identifiants incorrects';
+            }
+        }
+
+        function showApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.add('active');
+            document.getElementById('userBadge').innerText = currentRole === 'admin' ? '👤 Admin' : '📝 Saisir';
+            if (currentRole === 'admin') {
+                document.getElementById('adminPanel').classList.remove('hidden');
+                updateLouvList();
+            }
+            render();
+        }
+
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('appScreen').classList.remove('active');
+        }
+
+        // STATUS
+        function updateFirebaseStatus(ok) {
+            const el = document.getElementById('firebaseStatus');
+            if (ok) {
+                el.innerText = '✓ Firebase';
+                el.classList.add('connected');
+            } else {
+                el.innerText = '🔄 Connexion...';
+                el.classList.remove('connected');
+            }
+        }
+
+        // RENDER
+        function render() {
+            const sorties = Object.values(appData.sorties || {})
+                .filter(s => s.visible !== false)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            document.getElementById('sortInfo').innerText = `${sorties.length} sortie(s) · ${Object.values(appData.validations || {}).filter(v => v.locked).length} validée(s)`;
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const louvs = Object.values(appData.louveteaux || {})
+                .sort((a, b) => {
+                    const order = ['noir', 'gris', 'blanc', 'brun'];
+                    return order.indexOf(a.sizaine) - order.indexOf(b.sizaine) || a.name.localeCompare(b.name);
+                });
+
+            louvs.forEach(lou => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><strong>${lou.name}</strong></td><td><span style="background: ${{noir:'#333',gris:'#999',blanc:'#e0e0e0',brun:'#8b6f47'}[lou.sizaine]}; color: ${lou.sizaine === 'blanc' ? '#333' : '#fff'}; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${lou.sizaine}</span></td>`;
+
+                sorties.forEach(sortie => {
+                    const val = appData.validations[sortie.id] || {};
+                    const key = `${sortie.id}_${lou.id}`;
+                    const isAbsent = val.absents?.[key];
+                    const isLocked = val.locked;
+
+                    const td = document.createElement('td');
+                    td.style.textAlign = 'center';
+                    if (isAbsent) td.classList.add('absent-cell');
+
+                    const dateDiv = document.createElement('div');
+                    dateDiv.style.fontSize = '12px';
+                    dateDiv.style.color = 'var(--text-secondary)';
+                    dateDiv.style.marginBottom = '4px';
+                    dateDiv.innerText = new Date(sortie.date).toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
+                    td.appendChild(dateDiv);
+
+                    if (!isLocked || currentRole === 'admin') {
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.checked = isAbsent;
+                        cb.disabled = isLocked && currentRole !== 'admin';
+                        cb.onchange = () => toggleAbsence(lou.id, sortie.id, cb.checked);
+                        td.appendChild(cb);
+                    } else {
+                        const sp = document.createElement('span');
+                        sp.innerText = isAbsent ? '✗' : '✓';
+                        sp.style.fontWeight = 'bold';
+                        td.appendChild(sp);
+                    }
+
+                    if (currentRole === 'admin') {
+                        const btn = document.createElement('button');
+                        btn.innerText = '✏️';
+                        btn.style.marginLeft = '4px';
+                        btn.style.padding = '2px 4px';
+                        btn.style.fontSize = '11px';
+                        btn.onclick = () => showEditSortieModal(sortie);
+                        td.appendChild(btn);
+                    }
+
+                    tr.appendChild(td);
+                });
+
+                const abTd = document.createElement('td');
+                abTd.style.fontWeight = '600';
+                abTd.style.color = 'var(--text-danger)';
+                abTd.style.textAlign = 'center';
+                const totalAbs = Object.values(appData.validations || {})
+                    .reduce((sum, v) => sum + (Object.keys(v.absents || {}).filter(k => k.endsWith(`_${lou.id}`)).length), 0);
+                abTd.innerText = totalAbs;
+                tr.appendChild(abTd);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleAbsence(louId, sortieId, isAbs) {
+            const val = appData.validations[sortieId] || { id: sortieId, absents: {} };
+            const key = `${sortieId}_${louId}`;
+            if (isAbs) val.absents[key] = true;
+            else delete val.absents[key];
+            db.ref(`louveteau-data/validations/${sortieId}`).set(val);
+        }
+
+        // SORTIES
+        function showAddSortieModal() { document.getElementById('addSortieModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function saveSortie() {
+            const date = document.getElementById('sortieDate').value;
+            const label = document.getElementById('sortieLabel').value;
+            if (!date || !label) { alert('Remplissez tous les champs'); return; }
+
+            const id = 'sortie_' + Date.now();
+            db.ref(`louveteau-data/sorties/${id}`).set({ id, date, label, visible: true });
+
+            document.getElementById('sortieDate').value = '';
+            document.getElementById('sortieLabel').value = '';
+            closeModal('addSortieModal');
+        }
+
+        function showEditSortieModal(s) {
+            editingSortie = s;
+            document.getElementById('editDate').value = s.date;
+            document.getElementById('editLabel').value = s.label;
+            document.getElementById('editVisible').checked = s.visible !== false;
+            document.getElementById('editSortieModal').classList.add('active');
+        }
+
+        function updateSortie() {
+            const s = { ...editingSortie, date: document.getElementById('editDate').value, label: document.getElementById('editLabel').value, visible: document.getElementById('editVisible').checked };
+            db.ref(`louveteau-data/sorties/${editingSortie.id}`).set(s);
+            closeModal('editSortieModal');
+        }
+
+        function deleteSortie() {
+            if (!confirm('Supprimer cette sortie?')) return;
+            db.ref(`louveteau-data/sorties/${editingSortie.id}`).remove();
+            db.ref(`louveteau-data/validations/${editingSortie.id}`).remove();
+            closeModal('editSortieModal');
+        }
+
+        // LOUVETEAUX
+        function addLouveteau() {
+            const name = document.getElementById('newLouvName').value;
+            const siz = document.getElementById('newLouvSizaine').value;
+            if (!name || !siz) { alert('Remplissez tous les champs'); return; }
+
+            const id = 'lou_' + Date.now();
+            db.ref(`louveteau-data/louveteaux/${id}`).set({ id, name, sizaine: siz });
+
+            document.getElementById('newLouvName').value = '';
+            document.getElementById('newLouvSizaine').value = '';
+        }
+
+        function updateLouvList() {
+            const list = document.getElementById('louvList');
+            list.innerHTML = '';
+            Object.values(appData.louveteaux || {}).forEach(lou => {
+                const item = document.createElement('div');
+                item.className = 'louveteau-item';
+                item.innerHTML = `<span>${lou.name} (${lou.sizaine})</span><button onclick="delLou('${lou.id}')">×</button>`;
+                list.appendChild(item);
+            });
+        }
+
+        function delLou(id) {
+            if (!confirm('Supprimer?')) return;
+            db.ref(`louveteau-data/louveteaux/${id}`).remove();
+        }
+
+        // WHATSAPP
+        function copyWhatsApp() {
+            const sorties = Object.values(appData.sorties || {}).filter(s => s.visible !== false).sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (!sorties.length) { alert('Aucune sortie'); return; }
+
+            const last = sorties[sorties.length - 1];
+            const val = appData.validations[last.id] || {};
+            const absents = Object.keys(val.absents || {}).map(k => k.split('_')[1]).filter((id, i, a) => a.indexOf(id) === i);
+            const louvs = Object.values(appData.louveteaux || {});
+
+            let msg = `Suivi sortie – ${last.label}\n━━━\nPrésents: ${louvs.length - absents.length} | Absents: ${absents.length}\n\n`;
+            if (absents.length) {
+                msg += `Absents:\n`;
+                absents.forEach(louId => {
+                    const lou = louvs.find(l => l.id === louId);
+                    if (lou) {
+                        const cnt = Object.values(appData.validations || {}).reduce((s, v) => s + (Object.keys(v.absents || {}).filter(k => k.endsWith(`_${louId}`)).length), 0);
+                        msg += `• ${lou.name} (${cnt} abs. année)\n`;
+                    }
+                });
+            } else msg += `✅ Tout le monde présent!\n`;
+            if (val.comment) msg += `\nCommentaire: ${val.comment}`;
+            msg += `\n━━━\nLouveteaux 2026/2027`;
+
+            navigator.clipboard.writeText(msg).then(() => alert('Copié! 📋'));
+        }
+
+        updateFirebaseStatus(false);
+    </script>
+</body>
+</html>
